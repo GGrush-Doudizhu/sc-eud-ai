@@ -3,7 +3,7 @@
 ## 将电脑玩家类型修改为人类
 星际争霸的原生电脑AI拥有自主的单位控制逻辑，这些内置行为会严重干扰EUD脚本对单位的控制。为了精准有效地实现EUD对单位的操作，​**必须尽可能消除星际争霸原生程序对电脑单位的控制干扰**。解决方案是将目标电脑玩家的player type改为human，使星际争霸将电脑玩家识别为人类玩家。
 
-修改地址：https://armoha.github.io/eud-book/offsets/ActivePlayerStructures.html
+内存地址：https://armoha.github.io/eud-book/offsets/ActivePlayerStructures.html
 ```js
 function onPluginStart() {
     bwrite_epd(EPD(0X57EEE0) + 9 * player + 0x02, 0, 2);
@@ -18,7 +18,7 @@ function onPluginStart() {
 # config.py
 BASE_NAMES = [f"base_{i}" for i in range(4)]
 ```
-以下获取资源块epd地址的方法是通过读取单位在chk结构中的索引计算获得，这样做的好处是在编译期完成，使得输出地图的触发数量和文件大小都比较小。缺点是可能会由于空单位导致所有资源块的epd地址产生系统偏移，所以更保险的做法是在游戏开始的时候再进行初始化。
+以下获取资源块epd地址的方法是通过读取单位在chk结构中的索引计算获得，这样做的好处是在编译期完成，使得输出地图的触发数量和文件大小都比较小。缺点是可能会由于某些无效单位导致所有资源块的epd地址产生系统偏移，所以更保险的做法是在游戏开始的时候再进行初始化。
 ```python
 # resource.py
 import config
