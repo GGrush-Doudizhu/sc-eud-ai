@@ -146,6 +146,82 @@ function onPluginStart() {
 }
 ```
 
+## 新农民自动采水晶（通用）
+以下是在游戏的绝大多数时候，新造出来的农民默认自动采水晶的方案。该方案暂时未考虑贫矿分农民以及虫族的新单位的特殊性这两个细节，之后再更新，现在先把已完成的工作记录上来。
+
+最简用法：
+```js
+function afterTriggerExec() {
+    foreach (cunit: EUDLoopNewCUnit()) {
+        if (cunit.unitType == "Protoss Probe") {
+            cunit.order = "Move to Harvest Minerals";
+        }
+    }
+}
+```
+典型使用案例：
+```py
+# unit.py
+from eudplib import *
+
+HUMAN_PLAYER = P1
+
+new_unit_queue_list = [
+    "Zerg Drone", 
+    "Terran SCV", 
+    "Protoss Probe", 
+]
+
+new_unit_queue = {}
+
+for unit in new_unit_queue_list:
+    new_unit_queue[unit] = EUDQueue(8)()
+
+
+def f_process_new_units():
+    for cunit in EUDLoopNewCUnit():
+        EUDContinueIfNot(cunit.playerID == HUMAN_PLAYER) # Not AI player
+        EUDContinueIfNot(cunit.unknown0x106 == 0)  # Not specially marked
+
+        EPDSwitch(cunit + 0x64 // 4, 0xFF)
+        for unit in new_unit_queue_list:
+            if EUDSwitchCase()(EncodeUnit(unit)):
+                new_unit_queue[unit].append(cunit)
+                EUDBreak()
+        EUDEndSwitch()
+
+
+# resource.py
+from eudplib import *
+import unit as u
+
+WORKER_TYPES = ("Zerg Drone", "Terran SCV", "Protoss Probe")
+
+class Orders:
+    Harvest_Minerals = EncodeUnitOrder("Move to Harvest Minerals")
+
+
+def f_new_worker_harvest():
+    for unit in WORKER_TYPES:
+        queue = u.new_unit_queue[unit]
+        if EUDWhileNot()(queue.empty()):
+            cunit = CUnit.cast(queue.popleft())
+            cunit.order = Orders.Harvest_Minerals
+        EUDEndWhile()
+```
+```js
+import resource as r;
+import unit as u;
+
+function beforeTriggerExec() {
+    u.process_new_units();
+}
+
+function afterTriggerExec() {
+    r.new_worker_harvest();
+}
+```
+
 ## 矿区资源初始化
 星际争霸AI一个非常首要的任务就是命令工人采集资源和扩张，现阶段为了简单起见，我固定AI在地图上的出生点位，这样我就能够简单高效地进行初始化。
 
