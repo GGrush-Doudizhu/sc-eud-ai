@@ -32,6 +32,8 @@ function onPluginStart() {
 ## 取消部分单位的Men属性
 在游戏中，我们经常需要Order所有Men发起进攻，但是电脑的农民等非战斗单位也被命令了，这是因为那些单位在星际争霸里都属于Men. 我们可以提前修改这些单位的groupFlags, 把Men属性去除，这样就可以安心地使用Order命令让电脑对玩家发起进攻了。
 
+特殊单位，如魔法兵种、农民等单位，必须使用EUD AI单独微操。
+
 最简用法：
 ```js
 function onPluginStart() {
