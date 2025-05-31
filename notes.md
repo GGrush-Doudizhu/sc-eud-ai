@@ -16,8 +16,10 @@ function onPluginStart() {
 # core.py
 from eudplib import *
 
+AI_PLAYER_IDS = [i for i in range(1, 8)]
+
 def f_set_player_type_to_human():
-    for player in range(1, 8):
+    for player in AI_PLAYER_IDS:
         f_bwrite_epd(EPD(0X57EEE0) + 9 * player + 0x02, 0, 2)
 ```
 ```js
@@ -104,6 +106,43 @@ import core as c;
 
 function onPluginStart() {
     c.unset_men_groupFlags();
+}
+```
+
+## 禁止AI的虫族房子开局乱动
+开局AI的overlord会随机运动，为了禁止这个行为，最直观的方法是修改cunit.order, 这里我们使用一个功能等价，但是效率远高得多的方案。
+
+这个方案看起来反直觉，但是功能上是完美的，应用这个函数后，进游戏后overlord是完全静止的，朝向等一切都没变。
+
+最简用法：
+```js
+function onPluginStart() {
+    MoveLocation("loc", "Zerg Overlord", P1, "Anywhere");
+    MoveUnit(1, "Zerg Overlord", P1, "loc", "loc");
+}
+```
+典型使用案例：
+```py
+# core.py
+from eudplib import *
+
+AI_PLAYER_IDS = [i for i in range(1, 8)]
+
+def f_stop_overlord():
+    actions = []
+
+    for player in AI_PLAYER_IDS:
+        actions.append(MoveLocation("loc", "Zerg Overlord", player, "Anywhere"))
+        actions.append(MoveUnit(1, "Zerg Overlord", player, "loc", "loc"))
+    
+    DoActions(actions)
+```
+```js
+// main.eps
+import core as c;
+
+function onPluginStart() {
+    c.stop_overlord();
 }
 ```
 
