@@ -29,6 +29,46 @@ function onPluginStart() {
 }
 ```
 
+## 禁用单人模式
+玩家输入单机作弊码进行游戏可能不是作者们所愿意见到的，于是我们可以禁用单人模式。
+
+内存地址：https://armoha.github.io/eud-book/offsets/MultiplayerMode.html
+
+最简用法：
+```js
+function onPluginStart() {
+    if (Memory(0x57F0B4, Exactly, 0)) {
+        setcurpl(P1);
+        Defeat();
+    }
+}
+```
+典型使用案例：
+```py
+# core.py
+from eudplib import *
+
+def is_single_player_Mode():
+    return Memory(0x57F0B4, Exactly, 0)
+
+
+def f_defeat_if_single_player_mode():
+    if EUDIf()(is_single_player_Mode()):
+        f_setcurpl(P1)
+        f_eprintln("\x06请在局域网或者战网玩！\x04为了防止输入单机作弊码，禁止使用单人模式游玩。")
+        DoActions(Defeat())  # 注意需要DoActions
+    EUDEndIf()
+
+```
+```js
+// main.eps
+import core as c;
+
+function onPluginStart() {
+    c.defeat_if_single_player_mode();
+}
+```
+
 ## 取消部分单位的Men属性
 在游戏中，我们经常需要Order所有Men发起进攻，但是电脑的农民等非战斗单位也被命令了，这是因为那些单位在星际争霸里都属于Men. 我们可以提前修改这些单位的groupFlags, 把Men属性去除，这样就可以安心地使用Order命令让电脑对玩家发起进攻了。
 
