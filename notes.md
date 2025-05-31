@@ -4,6 +4,7 @@
 星际争霸的原生电脑AI拥有自主的单位控制逻辑，这些内置行为会严重干扰EUD脚本对单位的控制。为了精准有效地实现EUD对单位的操作，​**必须尽可能消除星际争霸原生程序对电脑单位的控制干扰**。解决方案是将目标电脑玩家的player type改为human，使星际争霸将电脑玩家识别为人类玩家。
 
 内存地址：https://armoha.github.io/eud-book/offsets/ActivePlayerStructures.html
+
 最简用法：
 ```js
 function onPluginStart() {
@@ -25,6 +26,42 @@ import core as c;
 
 function onPluginStart() {
     c.set_player_type_to_human();
+}
+```
+
+## 取消部分单位的Men属性
+在游戏中，我们经常需要Order所有Men发起进攻，但是电脑的农民等非战斗单位也被命令了，这是因为那些单位在星际争霸里都属于Men. 我们可以提前修改这些单位的groupFlags, 把Men属性去除，这样就可以安心地使用Order命令让电脑对玩家发起进攻了。
+
+最简用法：
+```js
+function onPluginStart() {
+    TrgUnit("Protoss Probe").groupFlags.Men = 0;
+}
+```
+典型使用案例：
+```py
+# core.py
+from eudplib import *
+
+def f_unset_men_groupFlags():
+    unit_list = [
+        "Protoss Probe", 
+        "Protoss Dark Archon", 
+        "Protoss High Templar", 
+        "Protoss Observer", 
+        "Protoss Shuttle", 
+        "Protoss Arbiter", 
+    ]
+
+    for unit in unit_list:
+        TrgUnit(unit).groupFlags.Men = 0
+```
+```js
+// main.eps
+import core as c;
+
+function onPluginStart() {
+    c.unset_men_groupFlags();
 }
 ```
 
