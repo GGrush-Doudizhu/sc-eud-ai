@@ -7,8 +7,9 @@
 
 最简用法：
 ```js
+// main.eps
 function onPluginStart() {
-    bwrite_epd(EPD(0X57EEE0) + 9 * player + 0x02, 0, 2);
+    bwrite_epd(EPD(0X57EEE0) + 9 * player + 0x2, 0, 2);
 }
 ```
 典型使用案例, 1v7 AI:
@@ -16,19 +17,29 @@ function onPluginStart() {
 # core.py
 from eudplib import *
 
-AI_PLAYER_IDS = [i for i in range(1, 8)]
+AI_PLAYER_IDS = list(range(1, 8))
 
-def f_set_player_type_to_human():
+def set_player_type_to_human():
+    actions = []
+
     for player in AI_PLAYER_IDS:
-        f_bwrite_epd(EPD(0X57EEE0) + 9 * player + 0x02, 0, 2)
-```
-```js
-// main.eps
-import core as c;
+        actions.append(SetMemoryXEPD(EPD(0X57EEE0) + 9 * player + 0x2, SetTo, 2, 0xFF))
 
-function onPluginStart() {
-    c.set_player_type_to_human();
-}
+    DoActions(actions)
+
+
+# main.py
+import core as c
+
+def onPluginStart():
+    c.set_player_type_to_human()
+```
+以上案例中，使用了技巧，将7个修改动作合并为了一个动作，效率比以下更高：
+```py
+# low-efficient solutions, consume more triggers
+def set_player_type_to_human():
+    for player in AI_PLAYER_IDS:
+        f_bwrite_epd(EPD(0X57EEE0) + 9 * player + 0x2, 0, 2)
 ```
 
 ## 禁用单人模式
@@ -38,6 +49,7 @@ function onPluginStart() {
 
 最简用法：
 ```js
+// main.eps
 function onPluginStart() {
     if (Memory(0x57F0B4, Exactly, 0)) {
         setcurpl(P1);
@@ -54,21 +66,19 @@ def is_single_player_Mode():
     return Memory(0x57F0B4, Exactly, 0)
 
 
-def f_defeat_if_single_player_mode():
+def defeat_if_single_player_mode():
     if EUDIf()(is_single_player_Mode()):
         f_setcurpl(P1)
         f_eprintln("\x06请在局域网或者战网玩！\x04为了防止输入单机作弊码，禁止使用单人模式游玩。")
-        DoActions(Defeat())  # 注意需要DoActions
+        DoActions(Defeat())
     EUDEndIf()
 
-```
-```js
-// main.eps
-import core as c;
 
-function onPluginStart() {
-    c.defeat_if_single_player_mode();
-}
+# main.py
+import core as c
+
+def onPluginStart():
+    c.defeat_if_single_player_mode()
 ```
 
 ## 取消部分单位的Men属性
@@ -99,14 +109,13 @@ def f_unset_men_groupFlags():
 
     for unit in unit_list:
         TrgUnit(unit).groupFlags.Men = 0
-```
-```js
-// main.eps
-import core as c;
 
-function onPluginStart() {
-    c.unset_men_groupFlags();
-}
+
+# main.py
+import core as c
+
+def onPluginStart():
+    c.unset_men_groupFlags()
 ```
 
 ## 禁止AI的虫族房子开局乱动
@@ -136,14 +145,13 @@ def f_stop_overlord():
         actions.append(MoveUnit(1, "Zerg Overlord", player, "loc", "loc"))
     
     DoActions(actions)
-```
-```js
-// main.eps
-import core as c;
 
-function onPluginStart() {
-    c.stop_overlord();
-}
+
+# main.py
+import core as c
+
+def onPluginStart():
+    c.stop_overlord()
 ```
 
 ## 新农民自动采水晶（通用）
@@ -208,18 +216,17 @@ def f_new_worker_harvest():
             cunit = CUnit.cast(queue.popleft())
             cunit.order = Orders.Harvest_Minerals
         EUDEndWhile()
-```
-```js
-import resource as r;
-import unit as u;
 
-function beforeTriggerExec() {
-    u.process_new_units();
-}
 
-function afterTriggerExec() {
-    r.new_worker_harvest();
-}
+# main.py
+import resource as r
+import unit as u
+
+def beforeTriggerExec():
+    u.process_new_units()
+
+def afterTriggerExec():
+    r.new_worker_harvest()
 ```
 
 ## 矿区资源初始化
