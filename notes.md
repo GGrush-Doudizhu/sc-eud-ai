@@ -62,8 +62,13 @@ function onPluginStart() {
 ```
 典型使用案例：
 ```py
+# config.py
+HUMAN_PLAYER = 0
+
+
 # core.py
 from eudplib import *
+from config import *
 
 def is_single_player_Mode():
     return Memory(0x57F0B4, Exactly, 0)
@@ -71,7 +76,7 @@ def is_single_player_Mode():
 
 def defeat_if_single_player_mode():
     if EUDIf()(is_single_player_Mode()):
-        f_setcurpl(P1)
+        f_setcurpl(HUMAN_PLAYER)
         f_eprintln("\x06请在局域网或者战网玩！\x04为了防止输入单机作弊码，禁止使用单人模式游玩。")
         DoActions(Defeat())
     EUDEndIf()
