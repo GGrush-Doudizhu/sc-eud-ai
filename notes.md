@@ -102,20 +102,23 @@ function onPluginStart() {
 ```
 典型使用案例：
 ```py
+# config.py
+UNSET_MEN_GROUPFLAGS_LIST = [
+    "Protoss Probe", 
+    "Protoss Dark Archon", 
+    "Protoss High Templar", 
+    "Protoss Observer", 
+    "Protoss Shuttle", 
+    "Protoss Arbiter", 
+]
+
+
 # core.py
 from eudplib import *
+from config import *
 
 def unset_men_groupFlags():
-    unit_list = [
-        "Protoss Probe", 
-        "Protoss Dark Archon", 
-        "Protoss High Templar", 
-        "Protoss Observer", 
-        "Protoss Shuttle", 
-        "Protoss Arbiter", 
-    ]
-
-    for unit in unit_list:
+    for unit in UNSET_MEN_GROUPFLAGS_LIST:
         TrgUnit(unit).groupFlags.Men = 0
 
 
