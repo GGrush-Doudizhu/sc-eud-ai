@@ -14,10 +14,13 @@ function onPluginStart() {
 ```
 典型使用案例, 1v7 AI:
 ```py
+# config.py
+AI_PLAYER_IDS = list(range(1, 8))
+
+
 # core.py
 from eudplib import *
-
-AI_PLAYER_IDS = list(range(1, 8))
+from config import *
 
 def set_player_type_to_human():
     actions = []
@@ -132,10 +135,13 @@ function onPluginStart() {
 ```
 典型使用案例：
 ```py
+# config.py
+AI_PLAYER_IDS = list(range(1, 8))
+
+
 # core.py
 from eudplib import *
-
-AI_PLAYER_IDS = [i for i in range(1, 8)]
+from config import *
 
 def stop_overlord():
     actions = []
@@ -169,10 +175,13 @@ function afterTriggerExec() {
 ```
 典型使用案例：
 ```py
+# config.py
+HUMAN_PLAYER = 0
+
+
 # unit.py
 from eudplib import *
-
-HUMAN_PLAYER = P1
+from config import *
 
 new_unit_queue_list = [
     "Zerg Drone", 
