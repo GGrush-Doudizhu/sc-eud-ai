@@ -97,7 +97,7 @@ function onPluginStart() {
 # core.py
 from eudplib import *
 
-def f_unset_men_groupFlags():
+def unset_men_groupFlags():
     unit_list = [
         "Protoss Probe", 
         "Protoss Dark Archon", 
@@ -137,7 +137,7 @@ from eudplib import *
 
 AI_PLAYER_IDS = [i for i in range(1, 8)]
 
-def f_stop_overlord():
+def stop_overlord():
     actions = []
 
     for player in AI_PLAYER_IDS:
@@ -186,7 +186,7 @@ for unit in new_unit_queue_list:
     new_unit_queue[unit] = EUDQueue(8)()
 
 
-def f_process_new_units():
+def process_new_units():
     for cunit in EUDLoopNewCUnit():
         EUDContinueIfNot(cunit.playerID == HUMAN_PLAYER) # Not AI player
         EUDContinueIfNot(cunit.unknown0x106 == 0)  # Not specially marked
@@ -209,7 +209,7 @@ class Orders:
     Harvest_Minerals = EncodeUnitOrder("Move to Harvest Minerals")
 
 
-def f_new_worker_harvest():
+def new_worker_harvest():
     for unit in WORKER_TYPES:
         queue = u.new_unit_queue[unit]
         if EUDWhileNot()(queue.empty()):
