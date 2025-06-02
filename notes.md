@@ -363,3 +363,196 @@ MINERALS, VESPENES = get_resource_epd()
 # Maximum number of Mineral Field at a single base location, basically it is 9
 MINERAL_NUM = max(len(base_minerals) for base_minerals in MINERALS)
 ```
+
+## 建造功能的实现
+```py
+from enum import IntEnum
+from eudplib import *
+from eud_helper import *
+
+
+class TaskState(IntEnum):
+    CHECK_COND = 0
+    ASSIGN_WORKER = 1
+    MONITOR_BUILD = 2
+    RESET_COLLISION = 3
+    RELEASE_WORKER = 4
+    BEING_BUILT = 5
+    FINISHED = 6
+
+
+class BuildTask:
+    def __init__(self, building, loc):
+        self.building = TrgUnit(building)
+        self.loc = EncodeLocation(loc)
+        self.state = EUDVariable()
+        self.cond = EUDLightBool()
+        self.cworker = CUnit(EUDVariable(0))
+        self.cbuilding = CUnit(EUDVariable(0))
+        self.loc_x, self.loc_y = ut.get_loc_xy_static(loc)
+        self.loc_pos = ut.get_loc_pos_static(loc)
+
+    def find_worker(self):
+        dmin, nearest_worker = set_new_var(0xFFFF, 0)
+        for unit in u.unit_group["Protoss Probe"].cploop:
+            # order
+            unit.move_cp(0x4D // 4)
+            EUDContinueIfNot(DeathsX(CurrentPlayer, Exactly, EncodeUnitOrder("Move to Harvest Minerals") << 8, 0, 0xFF00))
+            # special mark: unknown0x106
+            unit.move_cp(0x106 // 4)
+            EUDContinueIfNot(DeathsX(CurrentPlayer, Exactly, 0, 0, 0xFF0000))
+            # pos
+            unit.move_cp(0x28 // 4)
+            x, y = f_posread_cp(0)
+            dis = (x - self.loc_x).iabs() + (y - self.loc_y).iabs()
+            EUDContinueIf(dis >= dmin)
+            nearest_worker << unit.epd
+            dmin << dis
+
+        return nearest_worker
+
+    def is_worker_alive(self):
+        return self.cworker.order != EncodeUnitOrder("Die")
+    
+    def is_building_alive(self):
+        return self.cbuilding.order != EncodeUnitOrder("Die")
+
+    def reset_worker_status_and_mark(self):
+        VProc(self.cworker, [
+            SetMemory(0x6509B0, SetTo, 0x4D // 4),  # order
+            self.cworker.QueueAddTo(EPD(0x6509B0)), 
+        ])
+        DoActions([
+            # self.cworker.order = "Guard"
+            SetDeathsX(CurrentPlayer, SetTo, EncodeUnitOrder("Guard") << 8, 0, 0xFF00), 
+            # self.cworker.orderState = 0
+            SetMemory(0x6509B0, Add, 0x4E // 4 - 0x4D // 4), 
+            SetDeathsX(CurrentPlayer, SetTo, 0, 0, 0xFF0000), 
+            # self.cworker.orderQueueTimer = 0
+            SetMemory(0x6509B0, Add, 0x85 // 4 - 0x4E // 4), 
+            SetDeathsX(CurrentPlayer, SetTo, 0, 0, 0xFF00), 
+            # self.cworker.unknown0x106 = True
+            SetMemory(0x6509B0, Add, 0x106 // 4 -  0x85 // 4), 
+            SetDeathsX(CurrentPlayer, SetTo, 1 << 24, 0, 0xFF0000), 
+        ])
+        f_setcurpl2cpcache()
+
+    def build_probe(self):
+        VProc(self.cworker, [
+            SetMemory(0x6509B0, SetTo, 0x98 // 4),  # buildQueue
+            self.cworker.QueueAddTo(EPD(0x6509B0)), 
+        ])
+        DoActions([
+            # self.cworker.buildQueue1 = self.building
+            SetDeathsX(CurrentPlayer, SetTo, self.building, 0, 0xFFFF), 
+            # self.cworker.order = "Build (Probe)"
+            SetMemory(0x6509B0, Add, 0x4D // 4 - 0x98 // 4), 
+            SetDeathsX(CurrentPlayer, SetTo, EncodeUnitOrder("Build (Probe)") << 8, 0, 0xFF00), 
+            # self.cworker.orderTargetPos = self.loc_pos
+            SetMemory(0x6509B0, Add, 0x58 // 4 - 0x4D // 4), 
+            SetDeaths(CurrentPlayer, SetTo, self.loc_pos, 0), 
+            # self.cworker.set_gathering()
+            SetMemory(0x6509B0, Add, 0xDC // 4 -  0x58 // 4), 
+            SetDeathsX(CurrentPlayer, SetTo, 0x00800000, 0, 0x00800000), 
+        ])
+        f_setcurpl2cpcache()
+
+
+    def free_cworker_and_unmark(self):
+        self.cworker.unknown0x106 = False
+        self.cworker << 0
+
+    def reset_collision(self):
+        VProc(self.cworker, [
+            SetMemory(0x6509B0, SetTo, 0x4D // 4),  # order
+            self.cworker.QueueAddTo(EPD(0x6509B0)), 
+        ])
+        DoActions([
+            # self.cworker.order = "Reset Collision (2 Units)"
+            SetDeathsX(CurrentPlayer, SetTo, EncodeUnitOrder("Reset Collision (2 Units)") << 8, 0, 0xFF00), 
+            # self.cworker.orderState = 0
+            SetMemory(0x6509B0, Add, 0x4E // 4 - 0x4D // 4), 
+            SetDeathsX(CurrentPlayer, SetTo, 0, 0, 0xFF0000), 
+            # self.cworker.orderQueueTimer = 0
+            SetMemory(0x6509B0, Add, 0x85 // 4 - 0x4E // 4), 
+            SetDeathsX(CurrentPlayer, SetTo, 0, 0, 0xFF00), 
+        ])
+        f_setcurpl2cpcache()
+
+    def exec(self):
+        EUDSwitch(self.state)
+        case_state = EUDSwitchCase()
+        if case_state(TaskState.CHECK_COND):
+            EUDBreakIfNot(self.cond)
+            maybe_unit = self.find_worker()
+            if EUDIf()(maybe_unit != 0):
+                self.cworker = CUnit.cast(maybe_unit)
+                self.state += 1
+                self.reset_worker_status_and_mark()
+            EUDEndIf()
+            EUDBreak()
+        if case_state(TaskState.ASSIGN_WORKER):
+            if EUDIf()(self.is_worker_alive()):
+                self.state += 1
+                self.build_probe()
+            if EUDElse()():
+                self.state << TaskState.CHECK_COND
+                self.free_cworker_and_unmark()
+            EUDEndIf()
+            EUDBreak()
+        if case_state(TaskState.MONITOR_BUILD):
+            EPDSwitch(self.cworker + 0x4D // 4, 0xFF00)  # order
+            case_order = EUDSwitchCase()
+            if case_order(EncodeUnitOrder("Build (Probe)") << 8):
+                ctarget = self.cworker.orderTarget
+                EUDBreakIfNot(ctarget.unitType == self.building)
+                self.state += 1
+                self.cbuilding = ctarget
+                EUDBreak()
+            if case_order(EncodeUnitOrder("Die") << 8):
+                self.state << TaskState.CHECK_COND
+                self.free_cworker_and_unmark()
+                EUDBreak()
+            if EUDSwitchDefault()():
+                self.state << TaskState.ASSIGN_WORKER
+                EUDBreak()
+            EUDEndSwitch()
+            EUDBreak()
+        if case_state(TaskState.RESET_COLLISION):
+            if EUDIf()(self.is_worker_alive()):
+                self.reset_collision()
+            if EUDElse()():
+                self.free_cworker_and_unmark()
+            EUDEndIf()
+            self.state += 1
+            EUDBreak()
+        if case_state(TaskState.RELEASE_WORKER):
+            if EUDIf()(self.is_worker_alive()):
+                self.cworker.order = "Move to Harvest Minerals"
+                cresource = self.cworker.targetResourceUnit
+                if EUDIfNot()(cresource.order == EncodeUnitOrder("Die")):
+                    self.cworker.orderTarget = cresource
+                    self.cworker.orderTargetPos = cresource.pos
+                EUDEndIf()
+                self.free_cworker_and_unmark()
+            EUDEndIf()
+            self.state += 1
+            EUDBreak()
+        if case_state(TaskState.BEING_BUILT):
+            if EUDIf()(self.is_building_alive()):
+                if EUDIf()(self.cbuilding.is_completed()):
+                     self.state += 1
+                EUDEndIf()
+            if EUDElse()():
+                self.state << TaskState.CHECK_COND
+                self.cbuilding << 0
+            EUDEndIf()
+            EUDBreak()
+        if case_state(TaskState.FINISHED):
+            if EUDIfNot()(self.is_building_alive()):
+                self.state << TaskState.CHECK_COND
+                self.cbuilding << 0
+            EUDEndIf()
+            EUDBreak()
+        EUDEndSwitch()
+```
